@@ -1,0 +1,130 @@
+/* Auto-Save Value, offline mode
+   */
+
+.asvo-status {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    z-index: 3000;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid #9ca3af;
+    background-color: #f3f4f6;
+    color: #374151;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    cursor: default;
+}
+
+.asvo-status.asvo-clean {
+    background-color: #ecfdf5;
+    border-color: #059669;
+    color: #065f46;
+}
+
+.asvo-status.asvo-sending {
+    background-color: #eff6ff;
+    border-color: #1d4ed8;
+    color: #1e3a8a;
+}
+
+.asvo-status.asvo-queued {
+    background-color: #fffbeb;
+    border-color: #b45309;
+    color: #7c2d12;
+}
+
+.asvo-status.asvo-broken {
+    background-color: #fef2f2;
+    border-color: #b42318;
+    color: #7f1d1d;
+}
+
+/* another tab already has this record, so this one is doing nothing */
+.asvo-status.asvo-standby {
+    background-color: #f3f4f6;
+    border-color: #6b7280;
+    color: #374151;
+}
+
+.asvo-bar {
+    background-color: #fffbeb;
+    border: 2px solid #b45309;
+    border-left: 9px solid #b45309;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 10px 0 12px 0;
+    color: #7c2d12;
+    font-family: Arial, Helvetica, sans-serif;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+/* sitting directly above the question table, sized to it by script so it lines
+   up with the form and stays clear of REDCap's floating save box */
+.asvo-bar.asvo-inform {
+    margin: 0 0 10px 0;
+}
+
+.asvo-bar.asvo-clash {
+    background-color: #fef2f2;
+    border-color: #b42318;
+    border-left-color: #b42318;
+    color: #7f1d1d;
+}
+
+.asvo-bar-text {
+    font-size: 14px;
+    line-height: 1.6;
+    flex: 1 1 400px;
+}
+
+.asvo-bar-text code {
+    background-color: rgba(255,255,255,0.7);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.asvo-bar-buttons {
+    display: flex;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.asvo-btn {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 14px;
+    border-radius: 5px;
+    border: 1px solid #9ca3af;
+    background-color: #f9fafb;
+    color: #374151;
+    cursor: pointer;
+}
+
+.asvo-btn:hover {
+    background-color: #f3f4f6;
+}
+
+.asvo-btn-go {
+    background-color: #b45309;
+    border-color: #b45309;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.asvo-btn-go:hover {
+    background-color: #92400e;
+}
+
+.asvo-clash .asvo-btn-go {
+    background-color: #b42318;
+    border-color: #b42318;
+}

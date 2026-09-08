@@ -1,0 +1,6 @@
+# Everything the module itself does not need lives in _local and stays there.
+# Tests, the review record, the install notes for the administrator, the
+# screenshots and the dev dependencies are all in it. If it is not in _local,
+# it ships.
+_local/
+.DS_Store
