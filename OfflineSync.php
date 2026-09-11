@@ -602,16 +602,24 @@ class OfflineSync extends AbstractExternalModule
         // a table of descriptives) gets no layer and no indicator
         if (!count($fields)) return;
 
-        // JSON_HEX_TAG so a record id containing </script> cannot break out of the
-        // block. Slashes stay escaped for the same reason.
+        // The HEX flags keep the JSON safe wherever it lands: a record id or a
+        // field label containing </script>, a quote or an ampersand comes out as
+        // \uXXXX. Non-ASCII is escaped too, by default, which covers U+2028 and
+        // U+2029 -- valid in JSON, historically line breaks to a JavaScript parser.
         $json = json_encode($settings, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-        if ($json === false) return; // rather than emitting "var x = ;" and killing the page's scripts
+        if ($json === false) return; // rather than emitting half a script and killing the page
+
+        // Project data reaches the browser as an HTML attribute rather than as a
+        // JavaScript literal, so it is escaped by escape() -- the framework's own
+        // htmlspecialchars() -- and the browser hands the original string back to
+        // JSON.parse. Nothing derived from record data is ever parsed as code, and
+        // the page gets one global instead of three.
         ?>
         <!-- Offline Sync: start -->
         <link rel="stylesheet" type="text/css" href="<?=$this->getUrl('css/offline-sync.css')?>">
+        <div id="ofs-settings" style="display:none" data-settings="<?=$this->escape($json)?>"></div>
         <script type="text/javascript">
-            var OfflineSyncSettings = <?=$json?>;
-            var OfflineSyncModule = <?=$this->getJavascriptModuleObjectName()?>;
+            window.OfflineSync = { jsmo: <?=$this->getJavascriptModuleObjectName()?> };
         </script>
         <script type="text/javascript" src="<?=$this->getUrl('js/offline-sync.js')?>"></script>
         <!-- Offline Sync: end -->

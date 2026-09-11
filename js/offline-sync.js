@@ -12,11 +12,23 @@
 $(function() {
     'use strict';
 
-    // The action-tag layer already hangs save(), init() and findInput() off the
-    // module object, so keep our state somewhere else and borrow only ajax().
-    let module = (window.OfflineSync = {});
-    let transport = OfflineSyncModule;
-    let cfg = OfflineSyncSettings;
+    // One global for the whole module, created by the page with the framework's
+    // JavaScript object on it: the action-tag layer already hangs save(), init()
+    // and findInput() off that object, so our state lives out here and borrows
+    // only its ajax().
+    let module = (window.OfflineSync = window.OfflineSync || {});
+    let transport = module.jsmo;
+
+    // Settings arrive as an HTML attribute, not as a JavaScript literal, so no
+    // value from the record can ever be parsed as code. Without them there is
+    // nothing to do: the page did not ask for this module.
+    let holder = document.getElementById('ofs-settings');
+    let cfg = null;
+    try { cfg = holder ? JSON.parse(holder.getAttribute('data-settings')) : null; } catch (e) {}
+    if (!cfg || !transport) {
+        if (holder) console.log('Offline Sync: settings could not be read, standing down');
+        return;
+    }
 
     module.DB_NAME = 'offlineSync';
     module.DB_VERSION = 1;
