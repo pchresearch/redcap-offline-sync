@@ -9,7 +9,7 @@ Built on **Auto-Save Value** by Luke Stevens, Murdoch Children's Research
 Institute https://www.mcri.edu.au
 
 Original project: [lsgs/redcap-auto-save-value](https://github.com/lsgs/redcap-auto-save-value).
-The `@AUTOSAVE` action tags below are his work, kept as he wrote them. Offline
+The `@AUTOSAVE` action tags below are his work. Offline
 mode is added here.
 
 ********************************************************************************
