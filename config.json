@@ -1,18 +1,18 @@
 {
-	"name": "Auto-Save Value",
-	"namespace": "MCRI\\AutoSaveValue",
-	"description": "<code>@AUTOSAVE</code> action tags to trigger automatic saving of field values during data entry and/or on survey forms, plus an optional offline mode that keeps an encrypted copy of the form on the device and saves changes in the background when the connection allows.",
+	"name": "Offline Sync",
+	"namespace": "TheKids\\OfflineSync",
+	"description": "Keeps an encrypted copy of the form on the device and saves changed values in the background, so a dropped connection does not lose what has been typed. Includes the <code>@AUTOSAVE</code> action tags from <a href=\"https://github.com/lsgs/redcap-auto-save-value\">Auto-Save Value</a> by Luke Stevens, Murdoch Children's Research Institute, on which this module is built.",
 	"documentation": "README.md",
 	"authors": [
-		{
-			"name": "Luke Stevens",
-			"email": "luke.stevens@mcri.edu.au",
-			"institution": "Murdoch Children's Research Institute"
-		},
 		{
 			"name": "Syed Gilani",
 			"email": "syed.gilani@thekids.org.au",
 			"institution": "The Kids Research Institute Australia"
+		},
+		{
+			"name": "Luke Stevens",
+			"email": "luke.stevens@mcri.edu.au",
+			"institution": "Murdoch Children's Research Institute"
 		}
 	],
 	"framework-version": 16,
@@ -87,7 +87,7 @@
 		},
 		{
 			"key": "default-reason-for-change",
-			"name": "Text for \"reason for change\" (default is \"auto_save_value\")<div class=\"cc_info\">Used by the action tags and by offline mode. Neither can ask a user for a reason, so the same text is logged every time.</div>",
+			"name": "Text for \"reason for change\" (default is \"offline_sync\")<div class=\"cc_info\">Used by the action tags and by offline mode. Neither can ask a user for a reason, so the same text is logged every time.</div>",
 			"type": "text",
 			"hidden": true
 		}

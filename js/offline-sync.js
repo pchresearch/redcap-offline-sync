@@ -1,5 +1,5 @@
 /**
- * Auto-Save Value, offline mode.
+ * Offline Sync, offline mode.
  *
  * Mirrors the open form into encrypted browser storage and drips changed values
  * back to the server on a queue that survives the wifi going away.
@@ -14,11 +14,11 @@ $(function() {
 
     // The action-tag layer already hangs save(), init() and findInput() off the
     // module object, so keep our state somewhere else and borrow only ajax().
-    let module = (window.AutoSaveOffline = {});
-    let transport = AutoSaveValueModule;
-    let cfg = AutoSaveOfflineSettings;
+    let module = (window.OfflineSync = {});
+    let transport = OfflineSyncModule;
+    let cfg = OfflineSyncSettings;
 
-    module.DB_NAME = 'autoSaveValueOffline';
+    module.DB_NAME = 'offlineSync';
     module.DB_VERSION = 1;
     module.STORE_KEYS = 'keys';
     module.STORE_DRAFTS = 'drafts';
@@ -52,8 +52,8 @@ $(function() {
     module.sendSeq = 0;          // every batch gets a number
     module.acceptedSeq = 0;      // the newest one whose answer we have used
 
-    module.TAB_SLOT = 'asvo:tab';
-    module.CHANNEL = 'asvo-tabs';
+    module.TAB_SLOT = 'ofs:tab';
+    module.CHANNEL = 'ofs-tabs';
 
     module.recordKey = function() {
         return (cfg.record !== null && cfg.record !== '') ? cfg.record : 'new-record';
@@ -74,8 +74,8 @@ $(function() {
     module.series = cfg.survey
         ? ['survey', cfg.projectId || 0, cfg.eventId, cfg.instrument, cfg.instance].join('|')
         : ['entry', cfg.projectId || 0, cfg.user].join('|');   // one user's data entry rows in this project
-    module.lockName = 'asvo:sync:' + module.baseKey;
-    module.leaseKey = 'asvo:lease:' + module.baseKey;
+    module.lockName = 'ofs:sync:' + module.baseKey;
+    module.leaseKey = 'ofs:lease:' + module.baseKey;
 
     /* ------------------------------------------------------------------ */
     /* which tab am I                                                      */
@@ -325,7 +325,7 @@ $(function() {
                 module.lastWriteOk = true;
                 if (module.storageBroken) { module.storageBroken = false; module.setStatus(); }
             } catch (err) {
-                console.log('Auto-Save Value: could not write draft', err);
+                console.log('Offline Sync: could not write draft', err);
                 module.lastWriteOk = false;
                 module.storageBroken = true;
                 module.setStatus();
@@ -395,7 +395,7 @@ $(function() {
                 // Wrong key, so this row belongs to another user on this tablet.
                 // Leave it: deleting someone else's unsaved work to tidy our own
                 // screen is not a trade worth making. The TTL will clear it.
-                console.log('Auto-Save Value: a draft here could not be opened with this key, leaving it');
+                console.log('Offline Sync: a draft here could not be opened with this key, leaving it');
                 continue;
             }
 
@@ -446,7 +446,7 @@ $(function() {
     module.tabAlive = function(token) {
         if (!token) return Promise.resolve(false);
         if (navigator.locks && navigator.locks.request) {
-            return navigator.locks.request('asvo:tab:' + token, { ifAvailable: true }, function(lock) {
+            return navigator.locks.request('ofs:tab:' + token, { ifAvailable: true }, function(lock) {
                 return lock === null;       // somebody else holds it, so they are alive
             }).catch(function() { return false; });
         }
@@ -477,7 +477,7 @@ $(function() {
      */
     module.unwedgeFrameworkQueue = function() {
         if (!window.ExternalModules || typeof ExternalModules.__ajaxQueue != 'function') return;
-        if (ExternalModules.__ajaxQueue.__asvo) return;
+        if (ExternalModules.__ajaxQueue.__ofs) return;
         let queue = Promise.resolve();
         let enqueue = function(requestFunc) {
             let task = queue.then(requestFunc);
@@ -491,14 +491,14 @@ $(function() {
             queue = release;
             return task;
         };
-        enqueue.__asvo = true;
+        enqueue.__ofs = true;
         ExternalModules.__ajaxQueue = enqueue;
     };
 
     /** hold this tab's liveness lock for the life of the page */
     module.holdTabLock = function() {
         if (!(navigator.locks && navigator.locks.request)) return;
-        navigator.locks.request('asvo:tab:' + module.tabToken, function() {
+        navigator.locks.request('ofs:tab:' + module.tabToken, function() {
             return new Promise(function() {});   // released by the browser when the page goes
         }).catch(function() {});
     };
@@ -929,7 +929,7 @@ $(function() {
                 }
                 // corrected, so let it through again
                 delete module.refused[field];
-                $('.asvo-refusal[data-asvo-field="' + module.sel(field) + '"]').remove();
+                $('.ofs-refusal[data-ofs-field="' + module.sel(field) + '"]').remove();
             }
 
             if (module.valuesDiffer(value, module.lastKnownServer[field])) {
@@ -1007,7 +1007,7 @@ $(function() {
         let stale = function() { return seq <= module.acceptedSeq; };
 
         module.withTimeout(transport.ajax(cfg.syncAction, { changes: batch })).then(function(response) {
-            if (stale()) { console.log('Auto-Save Value: ignoring a late answer for batch ' + seq); return; }
+            if (stale()) { console.log('Offline Sync: ignoring a late answer for batch ' + seq); return; }
             module.acceptedSeq = seq;
             module.busy = false;
 
@@ -1022,24 +1022,24 @@ $(function() {
                 // REDCap pre-filled, is what moves a person past an old draft
                 if (module.valuesDiffer(batch[field].value, module.baseline[field])) module.savedHere[field] = true;
                 delete module.refused[field];
-                $('.asvo-refusal[data-asvo-field="' + module.sel(field) + '"]').remove();
+                $('.ofs-refusal[data-ofs-field="' + module.sel(field) + '"]').remove();
             });
 
             (response.notes || []).forEach(function(note) {
-                console.log('Auto-Save Value: REDCap noted - ' + note);
+                console.log('Offline Sync: REDCap noted - ' + note);
             });
 
             Object.keys(response.rejected || {}).forEach(function(field) {
                 if (!batch[field]) return;
                 module.refused[field] = { value: batch[field].value, why: response.rejected[field] };
-                console.log('Auto-Save Value: REDCap refused ' + field + ' - ' + response.rejected[field]);
+                console.log('Offline Sync: REDCap refused ' + field + ' - ' + response.rejected[field]);
                 module.showRefusal(field, response.rejected[field]);
             });
 
             (response.conflicts || []).forEach(function(clash) { module.showConflict(clash); });
 
             if ((response.errors || []).length) {
-                console.log('Auto-Save Value: server reported', response.errors);
+                console.log('Offline Sync: server reported', response.errors);
                 if (response.terminal) {
                     module.stopped = true;
                     module.showStopped(response.errors.join('; '));
@@ -1064,7 +1064,7 @@ $(function() {
             if (stale()) return;
             module.acceptedSeq = seq;
             module.busy = false;
-            console.log('Auto-Save Value: sync failed, keeping the queue', err);
+            console.log('Offline Sync: sync failed, keeping the queue', err);
             module.backOff();
         });
     };
@@ -1142,7 +1142,7 @@ $(function() {
     module.mount = function(panel) {
         let table = $('#questiontable');
         if (!table.length) { module.host().prepend(panel); return; }
-        panel.addClass('asvo-inform').insertBefore(table);
+        panel.addClass('ofs-inform').insertBefore(table);
         module.fitPanels();
         // a survey page keeps its table hidden until its own scripts have run
         setTimeout(module.fitPanels, 600);
@@ -1153,13 +1153,13 @@ $(function() {
         let table = $('#questiontable');
         if (!table.length) return;
         let width = table.outerWidth();
-        $('.asvo-inform').css('width', width > 320 ? width + 'px' : '');
+        $('.ofs-inform').css('width', width > 320 ? width + 'px' : '');
     };
 
     module.setStatus = function(state) {
         if (!cfg.showStatus) return;
-        let pill = $('#asvo-status');
-        if (!pill.length) pill = $('<div id="asvo-status" class="asvo-status"></div>').appendTo('body');
+        let pill = $('#ofs-status');
+        if (!pill.length) pill = $('<div id="ofs-status" class="ofs-status"></div>').appendTo('body');
 
         let waiting = Object.keys(module.pending).length;
         let clashes = Object.keys(module.conflicted).length;
@@ -1178,38 +1178,38 @@ $(function() {
             else state = waiting ? 'queued' : 'clean';
         }
 
-        pill.removeClass('asvo-clean asvo-queued asvo-sending asvo-broken asvo-standby');
+        pill.removeClass('ofs-clean ofs-queued ofs-sending ofs-broken ofs-standby');
         pill.attr('title', '');
 
         if (state == 'broken') {
-            pill.addClass('asvo-broken').text('On-device backup FAILED');
+            pill.addClass('ofs-broken').text('On-device backup FAILED');
         } else if (state == 'stopped') {
-            pill.addClass('asvo-broken').text('Saving stopped, see the message above');
+            pill.addClass('ofs-broken').text('Saving stopped, see the message above');
         } else if (state == 'clash') {
-            pill.addClass('asvo-broken').text(clashes + (clashes == 1 ? ' change needs' : ' changes need') + ' your decision');
+            pill.addClass('ofs-broken').text(clashes + (clashes == 1 ? ' change needs' : ' changes need') + ' your decision');
         } else if (state == 'stalled') {
-            pill.addClass('asvo-broken').text(stalled + (stalled == 1 ? ' value was' : ' values were') + ' not accepted');
+            pill.addClass('ofs-broken').text(stalled + (stalled == 1 ? ' value was' : ' values were') + ' not accepted');
         } else if (state == 'offered') {
             // nothing queued on this page, but the banner above is holding
             // answers the server does not have, so "all saved" would be a lie
-            pill.addClass('asvo-queued').text(offered + (offered == 1 ? ' unsaved answer' : ' unsaved answers') + ' held, see above');
+            pill.addClass('ofs-queued').text(offered + (offered == 1 ? ' unsaved answer' : ' unsaved answers') + ' held, see above');
         } else if (state == 'device-only') {
             // Mirror only, no background saving on this page. Amber once there
             // is something on the device the server does not have; the reason
             // the queue is shut sits in the tooltip and the console.
-            pill.addClass(waiting ? 'asvo-queued' : 'asvo-standby')
+            pill.addClass(waiting ? 'ofs-queued' : 'ofs-standby')
                 .text(waiting ? 'Held on this device only, not saved' : 'Held on this device')
                 .attr('title', 'Background saving is off on this page. ' + (cfg.syncReason || ''));
         } else if (state == 'standby') {
-            pill.addClass(waiting ? 'asvo-queued' : 'asvo-standby')
+            pill.addClass(waiting ? 'ofs-queued' : 'ofs-standby')
                 .text(waiting ? 'Held on this device only; another tab has the connection' : 'Another tab has the connection for this record')
                 .attr('title', 'Two tabs have this record open. Only one sends to the server, and each sends only what is typed in it.');
         } else if (state == 'sending') {
-            pill.addClass('asvo-sending').text('Saving ' + waiting + ' change' + (waiting == 1 ? '' : 's'));
+            pill.addClass('ofs-sending').text('Saving ' + waiting + ' change' + (waiting == 1 ? '' : 's'));
         } else if (state == 'queued') {
-            pill.addClass('asvo-queued').text((navigator.onLine ? 'Waiting to save ' : 'Offline, holding ') + waiting + ' change' + (waiting == 1 ? '' : 's'));
+            pill.addClass('ofs-queued').text((navigator.onLine ? 'Waiting to save ' : 'Offline, holding ') + waiting + ' change' + (waiting == 1 ? '' : 's'));
         } else {
-            pill.addClass('asvo-clean').text('All changes saved');
+            pill.addClass('ofs-clean').text('All changes saved');
         }
     };
 
@@ -1220,11 +1220,11 @@ $(function() {
      */
     module.showRestoreBar = function(offer) {
         module.held = offer;
-        let bar = $('<div class="asvo-bar asvo-restore"></div>');
-        $('<div class="asvo-bar-text"></div>').appendTo(bar);
-        let buttons = $('<div class="asvo-bar-buttons"></div>').appendTo(bar);
+        let bar = $('<div class="ofs-bar ofs-restore"></div>');
+        $('<div class="ofs-bar-text"></div>').appendTo(bar);
+        let buttons = $('<div class="ofs-bar-buttons"></div>').appendTo(bar);
 
-        $('<button type="button" class="asvo-btn asvo-btn-go">Put them back</button>')
+        $('<button type="button" class="ofs-btn ofs-btn-go">Put them back</button>')
             .on('click', function() {
                 let remaining = module.stillUnsaved(module.held);
                 // Fields somebody else changed after the draft was written are
@@ -1264,7 +1264,7 @@ $(function() {
                 }
             }).appendTo(buttons);
 
-        $('<button type="button" class="asvo-btn">Discard</button>')
+        $('<button type="button" class="ofs-btn">Discard</button>')
             .on('click', function() {
                 if (!confirm('Throw away the unsaved answers held on this device?')) return;
                 bar.remove();
@@ -1304,7 +1304,7 @@ $(function() {
             count + (count == 1 ? ' answer' : ' answers') + ' from ' + module.agoText(module.held.since) + ' never reached the server.';
         if (editing) text += ' ' + editing + ' of them ' + (editing == 1 ? 'is' : 'are') + ' for a field you are editing now, which will be left as you have it.';
         if (module.held.fromAnotherTab) text += ' They came from another window, so check they belong to this record.';
-        module.offerBar.find('.asvo-bar-text').html(text);
+        module.offerBar.find('.ofs-bar-text').html(text);
     };
 
     module.agoText = function(when) {
@@ -1323,21 +1323,21 @@ $(function() {
 
         let mine = Array.isArray(clash.mine) ? clash.mine.join(', ') : clash.mine;
         let theirs = Array.isArray(clash.theirs) ? clash.theirs.join(', ') : clash.theirs;
-        let panel = $('<div class="asvo-bar asvo-clash"></div>').attr('data-asvo-field', clash.field);
+        let panel = $('<div class="ofs-bar ofs-clash"></div>').attr('data-ofs-field', clash.field);
 
-        $('<div class="asvo-bar-text"></div>').html(
+        $('<div class="ofs-bar-text"></div>').html(
             '<strong>Somebody else changed "' + module.escapeHtml(module.labelOf(clash.field)) + '" while you were offline.</strong><br>' +
             'Yours: <code>' + module.escapeHtml(mine || '(blank)') + '</code> &nbsp; ' +
             'Already saved: <code>' + module.escapeHtml(theirs || '(blank)') + '</code><br>' +
             'You can also just correct the field itself, and your correction will be saved.'
         ).appendTo(panel);
 
-        let buttons = $('<div class="asvo-bar-buttons"></div>').appendTo(panel);
+        let buttons = $('<div class="ofs-bar-buttons"></div>').appendTo(panel);
 
-        $('<button type="button" class="asvo-btn asvo-btn-go">Keep mine</button>')
+        $('<button type="button" class="ofs-btn ofs-btn-go">Keep mine</button>')
             .on('click', function() { module.resolveConflict(clash.field, 'mine'); }).appendTo(buttons);
 
-        $('<button type="button" class="asvo-btn">Keep theirs</button>')
+        $('<button type="button" class="ofs-btn">Keep theirs</button>')
             .on('click', function() { module.resolveConflict(clash.field, 'theirs'); }).appendTo(buttons);
 
         module.mount(panel);
@@ -1354,7 +1354,7 @@ $(function() {
         module.savedHere[field] = true;   // decided on this page, either way
         delete module.conflicted[field];
         delete module.refused[field];
-        $('.asvo-clash[data-asvo-field="' + module.sel(field) + '"]').remove();
+        $('.ofs-clash[data-ofs-field="' + module.sel(field) + '"]').remove();
 
         if (side == 'theirs') {
             delete module.pending[field];
@@ -1403,10 +1403,10 @@ $(function() {
      * ten seconds; the panel clears itself when the field saves.
      */
     module.showRefusal = function(field, why) {
-        if ($('.asvo-refusal[data-asvo-field="' + module.sel(field) + '"]').length) return;
+        if ($('.ofs-refusal[data-ofs-field="' + module.sel(field) + '"]').length) return;
 
-        let panel = $('<div class="asvo-bar asvo-clash asvo-refusal"></div>').attr('data-asvo-field', field);
-        $('<div class="asvo-bar-text"></div>').html(
+        let panel = $('<div class="ofs-bar ofs-clash ofs-refusal"></div>').attr('data-ofs-field', field);
+        $('<div class="ofs-bar-text"></div>').html(
             '<strong>REDCap would not accept "' + module.escapeHtml(module.labelOf(field)) + '", so it has not been saved.</strong><br>' +
             module.escapeHtml(why) + '<br>Correct the value and it will be sent again. Everything else on the form saved normally.'
         ).appendTo(panel);
@@ -1416,16 +1416,16 @@ $(function() {
     };
 
     module.showStopped = function(why) {
-        if ($('.asvo-stopped').length) return;
-        let panel = $('<div class="asvo-bar asvo-clash asvo-stopped"></div>');
-        $('<div class="asvo-bar-text"></div>').html(
+        if ($('.ofs-stopped').length) return;
+        let panel = $('<div class="ofs-bar ofs-clash ofs-stopped"></div>');
+        $('<div class="ofs-bar-text"></div>').html(
             '<strong>Background saving has stopped for this form.</strong><br>' +
             module.escapeHtml(why) + '<br>' +
             'Your answers are still on this device and still on screen, but they are not being written to the database. ' +
             'Save the form by hand, or tell the study team before you close this page.'
         ).appendTo(panel);
-        $('<div class="asvo-bar-buttons"></div>')
-            .append($('<button type="button" class="asvo-btn asvo-btn-go">Try again</button>')
+        $('<div class="ofs-bar-buttons"></div>')
+            .append($('<button type="button" class="ofs-btn ofs-btn-go">Try again</button>')
                 .on('click', function() { module.rearm(); module.retryDelay = 0; module.flush(); }))
             .appendTo(panel);
         module.mount(panel);
@@ -1433,10 +1433,10 @@ $(function() {
     };
 
     module.showNote = function(text) {
-        let panel = $('<div class="asvo-bar"></div>');
-        $('<div class="asvo-bar-text"></div>').text(text).appendTo(panel);
-        $('<div class="asvo-bar-buttons"></div>')
-            .append($('<button type="button" class="asvo-btn">OK</button>').on('click', function() { panel.remove(); }))
+        let panel = $('<div class="ofs-bar"></div>');
+        $('<div class="ofs-bar-text"></div>').text(text).appendTo(panel);
+        $('<div class="ofs-bar-buttons"></div>')
+            .append($('<button type="button" class="ofs-btn">OK</button>').on('click', function() { panel.remove(); }))
             .appendTo(panel);
         module.mount(panel);
         module.scrollTo(panel);
@@ -1519,7 +1519,7 @@ $(function() {
     module.rearm = function() {
         if (!module.stopped) return;
         module.stopped = false;
-        $('.asvo-stopped').remove();
+        $('.ofs-stopped').remove();
         module.setStatus();
     };
 
@@ -1547,7 +1547,7 @@ $(function() {
             module.db = await module.openDb();
             module.cryptoKey = await module.loadKey();
         } catch (err) {
-            console.log('Auto-Save Value: no usable device storage', err); // private browsing, most likely
+            console.log('Offline Sync: no usable device storage', err); // private browsing, most likely
             module.storageBroken = true;
             module.offerSettled = true;
             module.setStatus();
@@ -1574,7 +1574,7 @@ $(function() {
         } catch (e) {
             // Leave offerSettled false: nothing is written over the previous
             // page's row until it has been read, and say so on the pill.
-            console.log('Auto-Save Value: could not read drafts', e);
+            console.log('Offline Sync: could not read drafts', e);
             module.storageBroken = true;
         }
         if (offer) module.showRestoreBar(offer);
@@ -1597,25 +1597,25 @@ $(function() {
         let unseen = covered.filter(function(f) { return module.readField(f) === null; });
         let uncovered = cfg.uncovered || {};
 
-        console.log('Auto-Save Value offline mode ' + (cfg.version || '') + ': ' + covered.length + ' field' +
+        console.log('Offline Sync ' + (cfg.version || '') + ': ' + covered.length + ' field' +
             (covered.length == 1 ? '' : 's') + ' mirrored on ' + cfg.instrument + (cfg.survey ? ' (survey page ' + cfg.page + ')' : '') +
             ', background saving ' + (cfg.syncEnabled ? 'on' : 'OFF') + '.');
 
         if (!cfg.syncEnabled && !cfg.survey) {
-            console.warn('Auto-Save Value: background saving is off on this page. ' + (cfg.syncReason || 'No reason was given.'));
+            console.warn('Offline Sync: background saving is off on this page. ' + (cfg.syncReason || 'No reason was given.'));
         }
         if (Object.keys(uncovered).length) {
-            console.warn('Auto-Save Value: fields on this instrument that are NOT covered, and why:', uncovered);
+            console.warn('Offline Sync: fields on this instrument that are NOT covered, and why:', uncovered);
         }
         if (unseen.length) {
-            console.warn('Auto-Save Value: ' + unseen.length + ' of ' + covered.length +
+            console.warn('Offline Sync: ' + unseen.length + ' of ' + covered.length +
                 ' fields declared saveable on this instrument were not found in the page, so they are NOT being ' +
                 'protected. This usually means an unsupported field rendering. Please report it with this list: ',
                 unseen);
         }
     };
 
-    /** call AutoSaveOffline.diagnose() in the console to get the state as one object */
+    /** call OfflineSync.diagnose() in the console to get the state as one object */
     module.diagnose = function() {
         return {
             version: cfg.version,

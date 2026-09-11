@@ -1,26 +1,32 @@
 <?php
 /**
- * REDCap External Module: Auto-Save Value 
- * Action tags to trigger automatic saving of values during data entry.
+ * REDCap External Module: Offline Sync
+ *
+ * Keeps an encrypted copy of a data entry form or survey page on the device and
+ * saves changed values back in the background, so that a dropped connection, a
+ * reload or a closed tab does not lose what has been typed.
+ *
+ * @author Syed Gilani, The Kids Research Institute Australia
+ *
+ * Built on Auto-Save Value by Luke Stevens, Murdoch Children's Research
+ * Institute (https://github.com/lsgs/redcap-auto-save-value), which is GPL-3.0.
+ * His @AUTOSAVE action tags are kept here as he wrote them: a tagged field is
+ * saved on its own the moment it changes, on data entry forms and on surveys.
  * @author Luke Stevens, Murdoch Children's Research Institute
  *
- * Offline mode, added below: an encrypted copy of the form is kept on the device
- * and offered back after a reload, and on data entry forms changed values are
- * saved in the background. It is switched on per instrument in the project
- * settings rather than per field, and mirrors whatever the instrument holds.
- *
- * The background writes go through REDCap::saveData(), which is an API level
- * write and enforces none of the protections the data entry screen gives for
- * free, so checkCaller() re-checks record locks, e-signatures, form-level
+ * Offline mode is the part added here. It is switched on per instrument in the
+ * project settings rather than per field, and mirrors whatever the instrument
+ * holds. The background writes go through REDCap::saveData(), which is an API
+ * level write and enforces none of the protections the data entry screen gives
+ * for free, so checkCaller() re-checks record locks, e-signatures, form-level
  * rights and data access groups on every request.
- * @author Syed Gilani, The Kids Research Institute Australia
  */
 
-namespace MCRI\AutoSaveValue;
+namespace TheKids\OfflineSync;
 
 use ExternalModules\AbstractExternalModule;
 
-class AutoSaveValue extends AbstractExternalModule
+class OfflineSync extends AbstractExternalModule
 {
     protected const AUTOSAVE_ACTION = 'save';
     protected const TAG_AUTOSAVE = '@AUTOSAVE';
@@ -157,9 +163,9 @@ class AutoSaveValue extends AbstractExternalModule
         <script type="text/javascript">
         (function() {
             var series = <?=$seriesJson?>, record = <?=$recordJson?>, tab = null;
-            try { tab = sessionStorage.getItem('asvo:tab'); } catch (e) {}
+            try { tab = sessionStorage.getItem('ofs:tab'); } catch (e) {}
             try {
-                var open = indexedDB.open('autoSaveValueOffline', 1);
+                var open = indexedDB.open('offlineSync', 1);
                 // never create the database here: an empty one would break the
                 // module on this browser for good
                 open.onupgradeneeded = function() { try { open.transaction.abort(); } catch (e) {} };
@@ -208,10 +214,10 @@ class AutoSaveValue extends AbstractExternalModule
         <script type="text/javascript">
         (function() {
             var series = <?=$json?>, tab = null;
-            try { tab = sessionStorage.getItem('asvo:tab'); } catch (e) {}
+            try { tab = sessionStorage.getItem('ofs:tab'); } catch (e) {}
             if (!tab) return;
             try {
-                var open = indexedDB.open('autoSaveValueOffline', 1);
+                var open = indexedDB.open('offlineSync', 1);
                 open.onupgradeneeded = function() { try { open.transaction.abort(); } catch (e) {} };
                 open.onsuccess = function() {
                     var db = open.result;
@@ -292,7 +298,7 @@ class AutoSaveValue extends AbstractExternalModule
         $this->initializeJavascriptModuleObject();
         $this->jsObjName = $this->getJavascriptModuleObjectName();
         ?>
-        <!-- Auto-Save Value external module: start-->
+        <!-- Offline Sync external module: start-->
         <style type="text/css">
             @keyframes pulse {
                 0% { transform: scale(1); }
@@ -461,7 +467,7 @@ class AutoSaveValue extends AbstractExternalModule
                 module.init();
             });
         </script>
-        <!-- Auto-Save Value external module: end-->
+        <!-- Offline Sync external module: end-->
         <?php
     }
 
@@ -534,7 +540,7 @@ class AutoSaveValue extends AbstractExternalModule
             }
         } catch (\Throwable $th) {
             $reason = $th->getMessage();
-            \REDCap::logEvent('Auto-Save Value offline mode', 'Stood down on this page: '.$reason, '', $record, $event_id);
+            \REDCap::logEvent('Offline Sync', 'Stood down on this page: '.$reason, '', $record, $event_id);
         }
 
         $this->initializeJavascriptModuleObject();
@@ -601,14 +607,14 @@ class AutoSaveValue extends AbstractExternalModule
         $json = json_encode($settings, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         if ($json === false) return; // rather than emitting "var x = ;" and killing the page's scripts
         ?>
-        <!-- Auto-Save Value offline mode: start -->
-        <link rel="stylesheet" type="text/css" href="<?=$this->getUrl('css/auto-save-value.css')?>">
+        <!-- Offline Sync: start -->
+        <link rel="stylesheet" type="text/css" href="<?=$this->getUrl('css/offline-sync.css')?>">
         <script type="text/javascript">
-            var AutoSaveOfflineSettings = <?=$json?>;
-            var AutoSaveValueModule = <?=$this->getJavascriptModuleObjectName()?>;
+            var OfflineSyncSettings = <?=$json?>;
+            var OfflineSyncModule = <?=$this->getJavascriptModuleObjectName()?>;
         </script>
-        <script type="text/javascript" src="<?=$this->getUrl('js/auto-save-value.js')?>"></script>
-        <!-- Auto-Save Value offline mode: end -->
+        <script type="text/javascript" src="<?=$this->getUrl('js/offline-sync.js')?>"></script>
+        <!-- Offline Sync: end -->
         <?php
     }
 
@@ -657,7 +663,7 @@ class AutoSaveValue extends AbstractExternalModule
 
         $field = (is_array($payload) && isset($payload[0]) && is_string($payload[0])) ? $payload[0] : '';
         if (!$this->fieldMayAutoSave($field, $instrument)) {
-            \REDCap::logEvent('Auto-Save Value module', 'Refused a save for a field that is not tagged for auto-save on this instrument', '', $record, $event_id);
+            \REDCap::logEvent('Offline Sync', 'Refused a save for a field that is not tagged for auto-save on this instrument', '', $record, $event_id);
             return 0;
         }
 
@@ -718,7 +724,7 @@ class AutoSaveValue extends AbstractExternalModule
                 $rtn = 1;
             }
         } catch(\Throwable $th) {
-            $title = "Auto-Save Value module";
+            $title = "Offline Sync";
             $detail = "Save failed: ".$th->getMessage();
             \REDCap::logEvent($title, $detail, '', $record, $event_id);
         }
@@ -1162,7 +1168,7 @@ class AutoSaveValue extends AbstractExternalModule
 
             // ontology lookups are text fields carrying a service in element_enum.
             // The box shows a label and stores a code, so reading .val() would save
-            // the wrong thing. Same reason AutoSaveValue leaves them alone.
+            // the wrong thing. Same reason OfflineSync leaves them alone.
             if ($type == 'text' && trim((string) $meta['element_enum']) !== '') {
                 $out['uncovered'][$field] = 'ontology lookup';
                 continue;
@@ -1505,7 +1511,7 @@ class AutoSaveValue extends AbstractExternalModule
             // apart from a wifi drop and say so, instead of sitting on "queued"
             // for the rest of the shift.
             $result['terminal'] = $this->isTerminal($th->getMessage());
-            \REDCap::logEvent('Auto-Save Value', 'Background save refused: '.$th->getMessage(), '', $record, $event_id);
+            \REDCap::logEvent('Offline Sync', 'Background save refused: '.$th->getMessage(), '', $record, $event_id);
         }
 
         return $result;
@@ -1773,7 +1779,7 @@ class AutoSaveValue extends AbstractExternalModule
                 if (!empty($single['warnings'])) $outcome['notes'] = array_merge($outcome['notes'], $single['warnings']);
             } else {
                 $outcome['failed'][$field] = $this->plainRefusal($single['errors']);
-                \REDCap::logEvent('Auto-Save Value', "Rejected $field: ".implode('; ', array_map('strval', $single['errors'])), '', $this->record, $this->event_id);
+                \REDCap::logEvent('Offline Sync', "Rejected $field: ".implode('; ', array_map('strval', $single['errors'])), '', $this->record, $this->event_id);
             }
         }
 
