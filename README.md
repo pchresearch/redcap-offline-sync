@@ -3,7 +3,7 @@
 
 Syed Gilani, The Kids Research Institute Australia https://www.thekids.org.au
 
-[https://gitlab.com/pchresearch/redcap-auto-save-value](https://gitlab.com/pchresearch/redcap-auto-save-value)
+[https://github.com/pchresearch/redcap-offline-sync](https://github.com/pchresearch/redcap-offline-sync)
 
 Built on **Auto-Save Value** by Luke Stevens, Murdoch Children's Research
 Institute https://www.mcri.edu.au
